@@ -83,7 +83,8 @@ void Trainer::Allocate(int P_nIPattern, bool P_Test, int P_nTPattern) {
 
 }
 
-void Trainer::setParams(REAL P_GradTh, REAL P_AnaTh, REAL P_MaxTh, REAL P_DigTh, long int P_IterTh,
+void Trainer::setParams(REAL P_GradTh, REAL P_AnaTh, REAL P_MaxTh,
+                        REAL P_DigTh, long int P_IterTh,
                         int P_RunTh, int P_nPrints, int P_YProp) {
     GradTh= P_GradTh;
     AnaTh= P_AnaTh;
@@ -306,8 +307,8 @@ void Trainer::Learn(string logfilename) {
 
 REAL Trainer::ComputeDigitalCost (REAL *Target, int nRowsT,
                                   REAL *Status) {
-    int nColsS,nColsT;
-    nColsS = nColsT=mbp->Unit(mbp->Layer());
+    int nColsT;
+    nColsT=mbp->Unit(mbp->Layer());
     int  i;
     REAL result = 0.0;
 
@@ -329,8 +330,8 @@ REAL Trainer::ComputeDigitalCost (REAL *Target, int nRowsT,
 
 REAL Trainer::ComputeAnalogCost  (REAL *Target, int nRowsT,
                                   REAL *Status) {
-    int nColsS,nColsT;
-    nColsS = nColsT=mbp->Unit(mbp->Layer());
+    int nColsT;
+    nColsT=mbp->Unit(mbp->Layer());
 
     int  i;
     REAL result = 0.0;
@@ -352,8 +353,8 @@ REAL Trainer::ComputeAnalogCost  (REAL *Target, int nRowsT,
 
 REAL Trainer::ComputeMaximumCost (REAL *Target, int nRowsT,
                                   REAL *Status) {
-    int nColsS,nColsT;
-    nColsS = nColsT=mbp->Unit(mbp->Layer());
+    int nColsT;
+    nColsT=mbp->Unit(mbp->Layer());
     int  i;
     REAL result = 0.0;
     REAL diff;

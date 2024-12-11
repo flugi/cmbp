@@ -1,6 +1,7 @@
 #include "mbp.h"
 
 #include <vector>
+#include <cmath>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -15,8 +16,11 @@ int main(int argc, char* argv[]) {
 		ss << argv[i] << " ";
 	}
 	int hidden_layer_size;
-	ss >> hidden_layer_size;
+    int iterations;
+    ss >> hidden_layer_size;
 	if (!ss.good() ) hidden_layer_size=4;
+    ss >> iterations;
+    if (!ss.good() ) iterations=1000;
 
     vector<string> fna = funclib.names();
     //cerr << fna[0];
@@ -29,7 +33,7 @@ int main(int argc, char* argv[]) {
     vector<vector<double> > a(16,vector<double>(4,0.0));
     vector<vector<double> > b(16,vector<double>(1,0.0));
 
-    tr->setParams(0, 0, 0.0, -1, 1500, 10, 1000, 1);
+    tr->setParams(0, 0, 0.0, -1, iterations, 10, 1000, 1);
 
     double tt[16] = {-1.0, 1.0, 1.0,-1.0, 1.0,-1.0, 1.0, 1.0, 1.0,-1.0,-1.0, 1.0,-1.0, 1.0, 1.0,-1.0};
     for (int i=0;i<16;i++) {
@@ -55,7 +59,7 @@ int main(int argc, char* argv[]) {
         for (int j=0;j<4;j++) inp[j]=a[i][j];
         for (int j=0;j<4;j++) cerr <<setw(4)<< inp[j];
         mbp->run(inp,outp);
-        cerr <<"  -->  " <<setw(14)<< outp[0] << " (" <<setw(4)<<b[i][0]<< ")" << endl;
+        cerr <<"  -->  " <<setw(14)<< outp[0] << " (" <<setw(4)<<b[i][0]<<" err:" <<setw(12)<< fabs(outp[0]-b[i][0])<< ")" << endl;
     }
     if (extratest) {
         tr->Learn();
