@@ -1,0 +1,4 @@
+cmbp is a Matrix BackPropagation implementation based on MBP by Davide Anguita, with written permission to use.
+
+The original MBP was using block operations on matrices, this implementation is just a multithreaded use of the non-block (1x1 in mm.h) functions as it is faster today. This is in no way faster than any GPU implementations, it is meant to be an education tool to play around simple neural network applications
+
