@@ -24,10 +24,9 @@ int main(int argc, char* argv[]) {
 
     vector<string> fna = funclib.names();
     //cerr << fna[0];
-    int reteg=2;
-    int rn[3]={4,2,1};
+    vector<int> rn({4,2,1});
     rn[1]=hidden_layer_size;
-    MBP * mbp = new MBP(reteg, rn,2);
+    MBP * mbp = new MBP(rn,2);
     mbp->setweightname("test.w");
     Trainer * tr = new Trainer(mbp);
     tr->Verbose(1);

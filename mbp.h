@@ -44,7 +44,7 @@ public:
     /// @param P_nLayer: the number of hidden and output layers. If P_nLayer==1, the network is a single layer perceptron
     /// @param p_nUnit: the number of neurons in each layer. P_nUnit[0] is the input layer, P_nUnit[P_nLayer] is the output layer
     /// @param P_aSeed: you can specify the random seed.
-    MBP (int P_nLayer, int* P_nUnit, int P_aSeed=0);
+    MBP (vector<int> layerSizes, int P_aSeed=0);
 
 
     ~MBP();

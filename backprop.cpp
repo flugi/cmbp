@@ -76,14 +76,13 @@ FuncLib funclib;
 
 
 
-MBP::MBP (int P_nLayer, int* P_nUnit, int P_aSeed) {
-
+MBP::MBP (vector<int> layerSizes, int P_aSeed) {
 
     Delta=0;
     weightname="MBPdefault.log";
-    nLayer=P_nLayer;
+    nLayer=layerSizes.size()-1;
     nUnit=new int[nLayer+1];
-    for (int i=0;i<=nLayer;i++) nUnit[i]=P_nUnit[i];
+    for (int i=0;i<=nLayer;i++) nUnit[i]=layerSizes[i];
 
     nl=funclib.getNLF("tanh");
 

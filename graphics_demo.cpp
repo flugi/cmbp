@@ -8,8 +8,8 @@ int main()
 {
     const int XX=800;
     const int YY=800;
-    int reteg[3]={2,25,1};
-    MBP mbp(2,reteg,1);
+    vector<int> reteg({2,25,1});
+    MBP mbp(reteg,1);
     Trainer tr(&mbp);
     tr.LoadIfPossible(false);
     vector<vector<REAL> > inp, outp;
