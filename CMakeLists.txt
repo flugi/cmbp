@@ -8,7 +8,6 @@ add_library(cmbp
     backprop.cpp
     mm.cpp
     trainer.cpp
-    random.cpp
 )
 
 add_executable(xor_test 

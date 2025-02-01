@@ -2,6 +2,7 @@
 #define _H_MBP
 
 #include "time.h"
+#include <cmath>
 
 #include <string>
 using std::string;
@@ -10,26 +11,57 @@ using std::string;
 using std::vector;
 #include <iostream>
 
-typedef float REAL;
+template<typename REAL>
+inline REAL nlf (REAL x) {
+    return (REAL)tanh(x);     /* Tanh */
+
+}
+
+template<typename REAL>
+inline REAL nldf (REAL x) {
+    return (REAL)(1.0-x*x);      /* Tanh' */
+}
+
+template<typename REAL>
+class Random {
+public:
+    REAL RandomNumber( ) {
+        double number;
+        int64_t aa = 16807L;
+        int64_t mm = 2147483647L;
+        int64_t qq = 127773L;
+        int64_t rr = 2836L;
+        int64_t hh = theSeed/qq;
+        int64_t lo = theSeed-hh*qq;
+        int64_t test = aa*lo-rr*hh;
+        if (test > 0) {
+            theSeed = test;
+        } else {
+            theSeed = test+mm;
+        }
+        number = (REAL)theSeed/(REAL)mm;
+
+        return number;
+    }
+    Random (long aSeed) {
+        theSeed = aSeed;
+    }
+    int64_t GetSeed () {
+        return theSeed;
+    }
+
+private:
+    long int theSeed;
+};
+
+
+
+
+
+
+typedef double REAL;
 #define MAXREAL 1.0e38
 
-typedef REAL(*NLF)(REAL);
-
-struct nlfunction {
-    NLF f, df;
-    string name;
-};
-
-class FuncLib : public vector<nlfunction> {
-public:
-    FuncLib();
-    nlfunction getNLF(string P_name);
-    vector<string> names() const;
-};
-
-extern FuncLib funclib;
-
-class Random;
 
 
 /// MBP is Matrix Backpropagation neural network by Davide Anguita. C++ wrapper by Gergely Feldhoffer.
@@ -37,6 +69,7 @@ class Random;
 /// class MBP is responsible for weight data and calculations as feed forward and error backpropagation
 
 /// @brief Matrix Backpropagation neural network
+
 
 class MBP {
 public:
@@ -98,7 +131,6 @@ public:
 
 protected:
 
-    nlfunction nl;
     string weightname;
 
     REAL** Weight;         /**< Weights                                         */
@@ -115,7 +147,7 @@ protected:
 
     REAL** RunStatus; /**< for run() function*/
 
-    Random *rand;
+    Random<REAL> *rand;
 
     int    nLayer;         /**< # of layers                                     */
     int*   nUnit;          /**< # of neurons per layer                          */

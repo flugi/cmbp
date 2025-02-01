@@ -21,9 +21,9 @@ vector<REAL> convert_line(string s) {
     float a;
     ss >> a;
     while (ss.good()) {
-        if (a<0 || a>1) {
-            cerr << "." << flush;
-        }
+//        if (a<0 || a>1) {
+//            cerr << "." << flush;
+//        }
         v.push_back(a);
         ss >> a;
     }
@@ -166,6 +166,7 @@ int main(int argc, char* argv[]) {
 	string inputname, outputname;
 	int hidden_layer_size;
     int iterations;
+    vector<int> customLayers;
     ss >>inputname>>outputname;
     if (!ss.good() ) {
         cerr << "usage: " << argv[0] << " inputfile outputfile [hidden_layer_size] [iterations]" << endl;
@@ -175,6 +176,22 @@ int main(int argc, char* argv[]) {
 	if (!ss.good() ) hidden_layer_size=4;
     ss >> iterations;
     if (!ss.good() ) iterations=100;
+    if (hidden_layer_size == 0) {
+        char c;
+        ss>>c;
+        string s;
+        if (c=='[') {
+            getline(ss,s,']');
+            stringstream ss2;
+            ss2<<s << " ";
+            int a;
+            ss2 >> a;
+            while (ss2.good()) {
+                customLayers.push_back(a);
+                ss2 >> a;
+            }
+        }
+    }
 
     vector<vector<REAL> > input = readfile(inputname);
     cout << input.size() <<flush<< "x" << input.at(0).size() << endl;
@@ -183,20 +200,23 @@ int main(int argc, char* argv[]) {
     cout << output.size() <<flush<< "x" << output.at(0).size() << endl;
 
     normalize(input, output);
-//    check(input, output);
 
-//    decimate(input, output);
-//    check1(input, output);
 
     int ID = input.at(0).size();
     int OD = output.at(0).size();
 
-    vector<string> fna = funclib.names();
-    //cerr << fna[0];
     vector<int> rn(3,0);
     rn[0]=ID;
     rn[1]=hidden_layer_size;
     rn[2]=OD;
+    if (customLayers.size()) {
+        rn=vector<int> (customLayers.size()+2);
+        rn[0]=ID;
+        rn[rn.size()-1]=OD;
+        for (size_t i=0;i<customLayers.size();i++) {
+            rn[i+1]=customLayers[i];
+        }
+    }
     MBP * mbp = new MBP(rn,2);
     mbp->setweightname("test.w");
     Trainer * tr = new Trainer(mbp);

@@ -2,7 +2,6 @@
 #define TRAINER_H
 
 #include "mbp.h"
-#include "random.h"
 #include <fstream>
 #include <iostream>
 #include <iomanip>

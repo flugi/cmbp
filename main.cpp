@@ -22,11 +22,9 @@ int main(int argc, char* argv[]) {
     ss >> iterations;
     if (!ss.good() ) iterations=100;
 
-    vector<string> fna = funclib.names();
-    //cerr << fna[0];
     vector<int> rn({4,2,1});
     rn[1]=hidden_layer_size;
-    MBP * mbp = new MBP(rn,2);
+    MBP * mbp = new MBP(rn,time(0));
     mbp->setweightname("test.w");
     Trainer * tr = new Trainer(mbp);
     tr->Verbose(1);

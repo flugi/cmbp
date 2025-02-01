@@ -1,78 +1,13 @@
 #include <iostream>
+#include <fstream>
 using namespace std;
 
 #include "mbp.h"
 #include "mm.h"
 #include <cmath>
-#include "random.h"
 
 
-/* **************************************************************************/
-/*                              f()                                         */
-/* **************************************************************************/
 
-REAL tanh_f (REAL x) {
-    return (REAL)tanh((double)x);     /* Tanh */
-
-}
-
-REAL tanh_apprxf (REAL x) {
-
-    /* IF YOU WANT TO USE THE APPROXIMATION USE THE FOLLOWING CODE INSTEAD */
-
-    REAL Lambda = 0.26037;
-    REAL Xs     = 1.92033;
-    REAL Ys     = 0.96016;
-
-    if ( x > Xs )
-    return Ys;
-    else if ( x < -Xs )
-    return -Ys;
-    else if ( x >= 0.0 )
-    return Ys-Lambda*(x-Xs)*(x-Xs);
-    else
-    return Lambda*(x+Xs)*(x+Xs)-Ys;
-
-}
-
-/* **************************************************************************/
-/*                              df()                                        */
-/* **************************************************************************/
-
-REAL tanh_df (REAL x) {
-    return (REAL)(1.0-x*x);      /* Tanh' */
-}
-
-FuncLib::FuncLib() {
-    nlfunction tanh;
-    tanh.f=tanh_f;
-    tanh.df=tanh_df;
-    tanh.name="tanh";
-    push_back(tanh);
-
-    nlfunction tanhapx;
-    tanh.f=tanh_apprxf;
-    tanh.df=tanh_df;
-    tanh.name="tanh_approx";
-    push_back(tanh);
-
-}
-
-nlfunction FuncLib::getNLF(string P_name) {
-    nlfunction res = at(0);
-    for (unsigned int i=1;i<size();i++)
-        if (at(i).name==P_name) res=at(i);
-    return res;
-}
-
-vector<string> FuncLib::names() const {
-    vector<string> res(size(),"");
-    for (unsigned int i=0;i<size();i++)
-        res[i]=at(i).name;
-    return res;
-}
-
-FuncLib funclib;
 
 
 
@@ -84,9 +19,8 @@ MBP::MBP (vector<int> layerSizes, int P_aSeed) {
     nUnit=new int[nLayer+1];
     for (int i=0;i<=nLayer;i++) nUnit[i]=layerSizes[i];
 
-    nl=funclib.getNLF("tanh");
 
-    rand= new Random(P_aSeed);
+    rand= new Random<REAL>(P_aSeed);
 
     Weight         = new REAL*[nLayer+1];
     Bias           = new REAL*[nLayer+1];
@@ -189,10 +123,6 @@ void MBP::FeedForward (REAL **NewStatus, int nRowsNS)
         int nColsNS=nUnit[idx];
         int nColsOS=nUnit[idx-1];
         int nColsW=nColsNS;
-        /* Fast matrix multiplication routine to compute neurons' net input */
-
-//        MM2x2PB (NewStatus[idx], OldStatus, Weight[idx], nRowsNS, nColsNS, nColsOS,
-//                 nColsOS,   nColsW, BLOCK_DIMENSION);
 
         MM1x1P (NewStatus[idx], OldStatus, Weight[idx], nRowsNS, nColsNS, nColsOS,
                  nColsOS,   nColsW);
@@ -201,7 +131,7 @@ void MBP::FeedForward (REAL **NewStatus, int nRowsNS)
 
         for (int i=0; i<nRowsNS; i++) {
             for (int j=0; j<nColsNS; j++) {
-                NewStatus[idx][i*nColsNS+j] = nl.f(NewStatus[idx][i*nColsNS+j]+Bias[idx][j]);
+                NewStatus[idx][i*nColsNS+j] = nlf(NewStatus[idx][i*nColsNS+j]+Bias[idx][j]);
             }
         }
     }
@@ -209,43 +139,35 @@ void MBP::FeedForward (REAL **NewStatus, int nRowsNS)
 
 void MBP::run (REAL *inp, REAL* outp)//REAL **NewStatus, int nRowsNS)
 {
-//cerr << nUnit[0]<<"..." << flush;
-    //TODO: first and last round can be inserted into the loop
-    for (int i=0;i<nUnit[0];i++) { //cerr << i << " ";
-        RunStatus[0][i]=inp[i];}
-//cerr << "inploaded" << flush;
+    for (int i=0;i<nUnit[0];i++) {
+        RunStatus[0][i]=inp[i];
+    }
+
     for (int idx=1; idx <= nLayer; idx++) {
-//cerr << "layer" << idx << "  " << flush;
         REAL *OldStatus=RunStatus[idx-1];
         int nColsNS=nUnit[idx];
         int nColsOS=nUnit[idx-1];
         int nColsW=nColsNS;
-        /* Fast matrix multiplication routine to compute neurons' net input */
 
-//        MM2x2PB (RunStatus[idx], OldStatus, Weight[idx], 1, nColsNS, nColsOS,
-//                 nColsOS,   nColsW, BLOCK_DIMENSION);
         MM1x1P (RunStatus[idx], OldStatus, Weight[idx], 1, nColsNS, nColsOS,
                  nColsOS,   nColsW);
 
         /* Compute neurons' output */
         for (int j=0; j<nColsNS; j++) {
-            RunStatus[idx][j] = nl.f(RunStatus[idx][j]+Bias[idx][j]);
+            RunStatus[idx][j] = nlf(RunStatus[idx][j]+Bias[idx][j]);
         }
 
     }
-    for(int i=0;i<nUnit[nLayer];i++) outp[i]=RunStatus[nLayer][i];
-//cerr << nUnit[0]<<"..." << flush;
+    for(int i=0;i<nUnit[nLayer];i++)
+        outp[i]=RunStatus[nLayer][i];
 }
 
 
 
 
 void MBP::Step(REAL **Status, int nIPattern) {
-    for (int il=1; il <= nLayer; il++) {
-    /* Compute the gradient */
-
-//        MTM2x2PB(DeltaWeight[il], Status[il-1], Delta[il], nUnit[il-1],nUnit[il], nIPattern, nUnit[il-1],
-//                 nUnit[il], BLOCK_DIMENSION);
+    for (int il=1; il <= nLayer; il++)
+    {
         MTM1x1P(DeltaWeight[il], Status[il-1], Delta[il], nUnit[il-1],nUnit[il], nIPattern, nUnit[il-1],
                  nUnit[il]);
 
@@ -267,20 +189,14 @@ void MBP::Step(REAL **Status, int nIPattern) {
 /* **************************************************************************/
 
 REAL MBP::ComputeGradientNorm () {
-    int  i,j;
     REAL result = 0.0;
-    REAL *pDeltaWeight;   /* Some pointers to speed things up */
-    REAL *pDeltaBias;
 
-    for ( i=1; i <= nLayer; i++ ) {
-        pDeltaWeight = DeltaWeight[i];
-        pDeltaBias   = DeltaBias[i];
-
-        for ( j=0; j < nUnit[i]*nUnit[i-1]; j++) {
-            result += (pDeltaWeight[j])*(pDeltaWeight[j]);
+    for (int i=1; i <= nLayer; i++ ) {
+        for (int j=0; j < nUnit[i]*nUnit[i-1]; j++) {
+            result += (DeltaWeight[i][j])*(DeltaWeight[i][j]);
         }
-        for ( j=0; j < nUnit[i]; j++) {
-            result += (pDeltaBias[j])*(pDeltaBias[j]);
+        for (int j=0; j < nUnit[i]; j++) {
+            result += (DeltaBias[i][j])*(DeltaBias[i][j]);
         }
     }
 
@@ -323,10 +239,6 @@ void MBP::BackStep()
     }
 }
 
-/*#include <fstream>
-using namespace std;
-ofstream bplog("backproplog.txt");
-*/
 
 ///Error back-propagation phase.
 /// 1. Compute for the last layer
@@ -338,23 +250,14 @@ void MBP::ErrorBackProp(REAL** Status, REAL*  Target, int nIPattern)
 {
     for (int i=0; i < nIPattern*nUnit[nLayer]; i++) {
         Delta[nLayer][i] = 2.0/((REAL)(nIPattern*nUnit[nLayer]))*
-                nl.df(Status[nLayer][i])*(Target[i]-Status[nLayer][i]);
+                nldf(Status[nLayer][i])*(Target[i]-Status[nLayer][i]);
     }
-/*
-for (int i=0; i < nIPattern*nUnit[nLayer]; i++) bplog << Status[nLayer][i] << " ";
-for (int i=0; i < nIPattern*nUnit[nLayer]; i++) bplog << Target[i] << " ";
-bplog<<endl;
-*/
-    /* and the hidden layers */
 
     for (int i=nLayer-1; i >= 1; i--) {
-
-        //Compute deltas of hidden neurons
-                                                                     //ez talan problemas
-//        MMT2x2P ( Delta[i], Delta[i+1], Weight[i+1], nIPattern, nUnit[i], nUnit[i+1], nUnit[i+1], nUnit[i+1]);
-        MMT1x1P ( Delta[i], Delta[i+1], Weight[i+1], nIPattern, nUnit[i], nUnit[i+1], nUnit[i+1],nUnit[i+1]);
+        MMT1x1P ( Delta[i], Delta[i+1], Weight[i+1],
+            nIPattern, nUnit[i], nUnit[i+1], nUnit[i+1],nUnit[i+1]);
         for (int j=0; j < nIPattern*nUnit[i]; j++) {
-            Delta[i][j] *= nl.df(Status[i][j]);
+            Delta[i][j] *= nldf(Status[i][j]);
         }
     }
 }
@@ -404,11 +307,6 @@ void MBP::SaveWeights() {
 
 }
 
-#include <fstream>
-#include <iostream>
-//using std::ofstream;
-using std::ifstream;
-using std::cerr;
 
 int MBP::LoadWeights() {
     ifstream inp(weightname.c_str());
