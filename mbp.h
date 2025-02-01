@@ -8,11 +8,12 @@ using std::string;
 
 #include <vector>
 using std::vector;
+#include <iostream>
 
-typedef double REAL;
+typedef float REAL;
 #define MAXREAL 1.0e38
 
-typedef double(*NLF)(double);
+typedef REAL(*NLF)(REAL);
 
 struct nlfunction {
     NLF f, df;
@@ -44,6 +45,9 @@ public:
     /// @param p_nUnit: the number of neurons in each layer. P_nUnit[0] is the input layer, P_nUnit[P_nLayer] is the output layer
     /// @param P_aSeed: you can specify the random seed.
     MBP (int P_nLayer, int* P_nUnit, int P_aSeed=0);
+
+
+    ~MBP();
 
     ///Allocate space for Delta array. Don't call this method directly, use the member functions of Trainer, unless you know what you are doing
     void setPattern(int P_nIPattern);
@@ -131,9 +135,11 @@ class Trainer {
 public:
     ///Trainer must be initialised with an MBP object. This will be the neural network to train
     Trainer(MBP *P_mbp);
+
+    ~Trainer();
     ///Sets the training data. input vector must be sized as [number of samples][input layer size]
     ///output vector must be sized as [number of samples][output layer size]
-    void setInput(const vector<vector<double> > &input, const vector<vector<double> > &output);
+    void setInput(const vector<vector<REAL> > &input, const vector<vector<REAL> > &output);
 
     ///Sets the parameters of the learning
     /// @param P_GradTh Stop criteria: if gradient is less than P_Gradth, the trainig is over
@@ -191,7 +197,7 @@ protected:
     double lastanacost, lastdigcost, lastmaxcost;
     ///prints the learning speed.
     void OutTime (double Time);
-    void PrintStep();
+    void PrintStep(std::ostream &trf = std::cout);
     void Allocate(int P_nIPattern, bool P_Test=false, int P_nTPattern=0);
 
     MBP * mbp;

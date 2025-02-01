@@ -9,8 +9,6 @@
 #include <vector>
 using namespace std;
 
-ostream &trf = cout;
-
 Trainer::Trainer(MBP *P_mbp) : mbp(P_mbp), AnaTestCost(0.0),MaxTestCost(0.0),DigTestCost(0.0){
 
     Tune(1.0, 1.47,2.0, 0.75, 0.9, 1.05,0.7, 1.05,0.7,0.07);
@@ -44,6 +42,20 @@ void Trainer::Tune(double P_Sat, double P_ASat, double P_R, double P_E0, double 
     G=P_G;
     Ka=P_Ka;
     Kd=P_Kd;
+
+}
+
+Trainer::~Trainer() {
+    if (Status) {
+        for (int i=0; i <= mbp->Layer(); i++) delete[] Status[i];
+        delete[] Status;
+    }
+    if (Target) delete[] Target;
+    if (StatusTest) {
+        for (int i=0; i <= mbp->Layer(); i++) delete[] StatusTest[i];
+        delete[] StatusTest;
+    }
+    if (TargetTest) delete[] TargetTest;
 
 }
 
@@ -260,21 +272,7 @@ void Trainer::setData(int P_nIPattern, REAL** P_Status, REAL* P_Target,
 
 void Trainer::Learn(string logfilename) {
 //cerr<<"Learning.. "<<nIPattern<< " patterns"<<endl;
-/*    ofstream verb("verblog.txt");
-    for (int i=0;i<nIPattern;i++) {
 
-        for (int j=0;j<mbp->Unit(0);j++) {
-            verb <<"["<< i << " " << j << "]: " << Status[0][i*mbp->Unit(0)+j];
-            verb.flush();
-        }
-        verb << endl;
-        for (int j=0;j<mbp->Unit(mbp->Layer());j++) {
-            verb <<"["<< i << " " << j << "]: " << Target[i*mbp->Unit(mbp->Layer())+j] << endl;
-            verb.flush();
-        }
-    }
-    verb.close();
-    */
     ofstream flog;
     if (logfilename!="")flog.open(logfilename.c_str(), std::ios::app);
     while (! endMBP) {
@@ -395,7 +393,7 @@ void Trainer::OutTime (double Time) {
 
 }
 
-void Trainer::PrintStep() {
+void Trainer::PrintStep(ostream &trf) {
     trf<< "#" << setw(4) << nIter
         << " grad:" <<setw(13) << GradientNorm
         << " ana:"  <<setw(13) << AnaCost
@@ -412,7 +410,7 @@ void Trainer::PrintStep() {
 
 #define ASSERT(felt, s) if (!(felt)) { cerr << __FILE__ << ":" <<  __LINE__ << " >"<< s << "<"<<endl; exit(1);}
 
-void Trainer::setInput(const vector<vector<double> > &input, const vector<vector<double> > &output) {
+void Trainer::setInput(const vector<vector<REAL> > &input, const vector<vector<REAL> > &output) {
     unsigned int s=input.size();
     ASSERT(s>0,"input size can not equal 0");
     ASSERT(s==output.size(),"no pairs : input:"<<s<<" output:"<<output.size());

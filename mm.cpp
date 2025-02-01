@@ -23,6 +23,55 @@ void MM1x1P(REAL* c, REAL* a, REAL* b,
 }
 
 /* **************************************************************************/
+/*                           MMT1x1P                                        */
+/* **************************************************************************/
+
+void MMT1x1P(REAL* c, REAL* a, REAL* b,
+             int Ni, int Nj, int Nk, int NaOffs, int NbOffs) {
+    REAL s00;
+    REAL *pa,*pb,*pc;
+
+#pragma omp parallel for
+    for (int i=0; i<Ni; i++) {
+        int k=0;
+        for (int j=0; j<Nj; j++) {
+            pc = c+j+Nj*i;
+            s00 = 0.0;
+            for (k=0,pb=b+k+NbOffs*j, pa=a+k+NaOffs*i; k<Nk; k++,pa++,pb++) {
+                s00 += (*pa)*(*pb);
+            }
+            *pc = s00;
+        }
+    }
+}
+
+/* **************************************************************************/
+/*                           MTM1x1P                                        */
+/* **************************************************************************/
+
+void MTM1x1P(REAL* c, REAL* a, REAL* b,
+             int Ni, int Nj, int Nk, int NaOffs, int NbOffs) {
+    REAL *pa,*pb,*pc;
+    REAL s00;
+
+#pragma omp parallel for
+    for (int i=0; i<Ni; i++) {
+        int k=0;
+        for (int j=0; j<Nj; j++) {
+            pc = c+j+Nj*i;
+            s00 = 0.0;
+            for (k=0,pb=b+j+k*NbOffs, pa=a+k*NaOffs+i; k<Nk; k++,pa+=NaOffs,pb+=NbOffs) {
+                s00 += (*pa)*(*pb);
+            }
+            *pc = s00;
+        }
+    }
+}
+
+
+#ifdef MUSEUM
+
+/* **************************************************************************/
 /*                           MM2x2P                                         */
 /* **************************************************************************/
 
@@ -614,28 +663,6 @@ void MM2x2PB(REAL* c, REAL* a, REAL* b,
     }
 }
 
-/* **************************************************************************/
-/*                           MMT1x1P                                        */
-/* **************************************************************************/
-
-void MMT1x1P(REAL* c, REAL* a, REAL* b,
-             int Ni, int Nj, int Nk, int NaOffs, int NbOffs) {
-    REAL s00;
-    REAL *pa,*pb,*pc;
-
-#pragma omp parallel for
-    for (int i=0; i<Ni; i++) {
-        int k=0;
-        for (int j=0; j<Nj; j++) {
-            pc = c+j+Nj*i;
-            s00 = 0.0;
-            for (k=0,pb=b+k+NbOffs*j, pa=a+k+NaOffs*i; k<Nk; k++,pa++,pb++) {
-                s00 += (*pa)*(*pb);
-            }
-            *pc = s00;
-        }
-    }
-}
 
 /* **************************************************************************/
 /*                           MMT2x2P                                        */
@@ -1247,28 +1274,6 @@ void MMT2x2PB(REAL* c, REAL* a, REAL* b,
     }
 }
 
-/* **************************************************************************/
-/*                           MTM1x1P                                        */
-/* **************************************************************************/
-
-void MTM1x1P(REAL* c, REAL* a, REAL* b,
-             int Ni, int Nj, int Nk, int NaOffs, int NbOffs) {
-    REAL *pa,*pb,*pc;
-    REAL s00;
-
-#pragma omp parallel for
-    for (int i=0; i<Ni; i++) {
-        int k=0;
-        for (int j=0; j<Nj; j++) {
-            pc = c+j+Nj*i;
-            s00 = 0.0;
-            for (k=0,pb=b+j+k*NbOffs, pa=a+k*NaOffs+i; k<Nk; k++,pa+=NaOffs,pb+=NbOffs) {
-                s00 += (*pa)*(*pb);
-            }
-            *pc = s00;
-        }
-    }
-}
 
 /* **************************************************************************/
 /*                           MTM2x2P                                        */
@@ -1858,6 +1863,8 @@ void MTM2x2PB(REAL* c, REAL* a, REAL* b,
         }
     }
 }
+
+#endif
 
 /* **************************************************************************/
 /*                           END OF FILE                                    */

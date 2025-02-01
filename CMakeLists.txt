@@ -14,6 +14,9 @@ add_library(cmbp
 add_executable(xor_test 
     main.cpp
 )
+add_executable(filetrain 
+    filetrain.cpp
+)
 
 add_executable(graphics_demo 
     graphics_demo.cpp
@@ -21,4 +24,5 @@ add_executable(graphics_demo
 
 
 target_link_libraries(xor_test cmbp)
+target_link_libraries(filetrain cmbp)
 target_link_libraries(graphics_demo cmbp ${CMAKE_SOURCE_DIR}/graphics/libgraphics.a SDL2 SDL2_ttf)

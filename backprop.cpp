@@ -126,6 +126,44 @@ MBP::MBP (int P_nLayer, int* P_nUnit, int P_aSeed) {
 //cerr << nUnit[0] << "cc ";
 }
 
+
+MBP::~MBP()
+{
+    delete[] nUnit;
+    delete rand;
+
+    for (int i=1; i <= nLayer; i++) {
+        delete[] Weight[i];
+        delete[] OldWeight[i];
+        delete[] DeltaWeight[i];
+        delete[] OldDeltaWeight[i];
+        delete[] StepWeight[i];
+    }
+    for (int i=0; i <= nLayer; i++) {
+        delete[] Bias[i];
+        delete[] OldBias[i];
+        delete[] DeltaBias[i];
+        delete[] OldDeltaBias[i];
+        delete[] StepBias[i];
+        delete[] RunStatus[i];
+    }
+
+    delete[] Weight;
+    delete[] Bias;
+    delete[] OldWeight;
+    delete[] OldBias;
+    delete[] DeltaWeight;
+    delete[] DeltaBias;
+    delete[] OldDeltaWeight ;
+    delete[] OldDeltaBias;
+    delete[] StepWeight;
+    delete[] StepBias;
+
+    delete[] RunStatus;
+    for (int i=1; i <= nLayer; i++) delete[] Delta[i];
+    delete[] Delta;
+}
+
 void MBP::setPattern(int nIPattern) {
     if (Delta) {
         for (int i=1; i <= nLayer; i++) delete[] Delta[i];

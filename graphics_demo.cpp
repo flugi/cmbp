@@ -12,10 +12,10 @@ int main()
     MBP mbp(2,reteg,1);
     Trainer tr(&mbp);
     tr.LoadIfPossible(false);
-    vector<vector<double> > inp, outp;
+    vector<vector<REAL> > inp, outp;
 
     gout.open(XX,YY);
-    double **Disp = new REAL*[mbp.Layer()+1];
+    REAL **Disp = new REAL*[mbp.Layer()+1];
     for (int i=0; i <= mbp.Layer(); i++) {
         Disp[i]= new REAL[mbp.Unit(i)*(XX*YY)];
     }
@@ -33,11 +33,11 @@ int main()
             double x=(ev.pos_x/double(XX))*2-1;
             double y=(ev.pos_y/double(YY))*2-1;
             if (ev.button>0) {
-                vector<double> p(2);
+                vector<REAL> p(2);
                 p[0]=x;
                 p[1]=y;
                 inp.push_back(p);
-                vector<double> op(1);
+                vector<REAL> op(1);
                 if (ev.button==btn_left)
                     op[0]=0.9;
                 if (ev.button==btn_right)
@@ -54,7 +54,7 @@ int main()
                 tr.setInput(inp, outp);
                 tr.setParams(0, 0, 0.0, -1, 1000, 3, 100, 0);
                 tr.Learn();
-                tr.LoadIfPossible(true); //ismételt nyomkodás legyen továbbtanulás
+                tr.LoadIfPossible(true);
                 cout <<"err:"<< tr.lastAnaCost() << " ("<<tr.lastMaxCost() <<" max)" << endl;
             }
             if (ev.keycode==' ') {
