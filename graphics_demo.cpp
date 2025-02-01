@@ -9,15 +9,15 @@ int main()
     const int XX=800;
     const int YY=800;
     vector<int> reteg({2,25,1});
-    MBP mbp(reteg,1);
-    Trainer tr(&mbp);
+    MBP<float> mbp(reteg,1);
+    Trainer<float> tr(&mbp);
     tr.LoadIfPossible(false);
-    vector<vector<REAL> > inp, outp;
+    vector<vector<float> > inp, outp;
 
     gout.open(XX,YY);
-    REAL **Disp = new REAL*[mbp.Layer()+1];
+    float **Disp = new float*[mbp.Layer()+1];
     for (int i=0; i <= mbp.Layer(); i++) {
-        Disp[i]= new REAL[mbp.Unit(i)*(XX*YY)];
+        Disp[i]= new float[mbp.Unit(i)*(XX*YY)];
     }
     for (int i=0;i<XX;i++)
         for (int j=0;j<YY;j++){
@@ -33,11 +33,11 @@ int main()
             double x=(ev.pos_x/double(XX))*2-1;
             double y=(ev.pos_y/double(YY))*2-1;
             if (ev.button>0) {
-                vector<REAL> p(2);
+                vector<float> p(2);
                 p[0]=x;
                 p[1]=y;
                 inp.push_back(p);
-                vector<REAL> op(1);
+                vector<float> op(1);
                 if (ev.button==btn_left)
                     op[0]=0.9;
                 if (ev.button==btn_right)

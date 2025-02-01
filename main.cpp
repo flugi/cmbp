@@ -24,10 +24,11 @@ int main(int argc, char* argv[]) {
 
     vector<int> rn({4,2,1});
     rn[1]=hidden_layer_size;
-    MBP * mbp = new MBP(rn,time(0));
+    MBP<float> * mbp = new MBP<float>(rn,time(0));
     mbp->setweightname("test.w");
-    Trainer * tr = new Trainer(mbp);
+    Trainer<float> * tr = new Trainer<float>(mbp);
     tr->Verbose(1);
+#define REAL float
     vector<vector<REAL> > a(16,vector<REAL>(4,0.0));
     vector<vector<REAL> > b(16,vector<REAL>(1,0.0));
 

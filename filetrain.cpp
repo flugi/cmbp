@@ -3,11 +3,12 @@
 #include <vector>
 #include <cmath>
 #include <iostream>
-#include <iomanip>
 #include <sstream>
 #include <fstream>
 #include <map>
 using namespace std;
+
+#define REAL float
 
 struct Mapping {
     float preadditive, postadditive;
@@ -217,9 +218,9 @@ int main(int argc, char* argv[]) {
             rn[i+1]=customLayers[i];
         }
     }
-    MBP * mbp = new MBP(rn,2);
+    MBP<float> * mbp = new MBP<float>(rn,2);
     mbp->setweightname("test.w");
-    Trainer * tr = new Trainer(mbp);
+    Trainer<float> * tr = new Trainer<float>(mbp);
     tr->LoadIfPossible(true);
     tr->Verbose(1);
     tr->setParams(0, 0, 0.0, -1, iterations, 1, 10, 1);
