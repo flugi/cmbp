@@ -1,5 +1,5 @@
 #include "graphics.hpp"
-#include "../mbp.h"
+#include "../mbp.hpp"
 using namespace genv;
 #include <iostream>
 using namespace std;

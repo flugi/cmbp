@@ -1,4 +1,4 @@
-#include "mbp.h"
+#include "mbp.hpp"
 
 #include <vector>
 #include <cmath>
@@ -60,9 +60,9 @@ void normalize(vector<vector<REAL> >&input, vector<vector<REAL> > &output ) {
     }
     float dist = max-min;
     cerr << min << " .. " << max << " ->" << dist << endl;
-    mapping.multiplicative = 1.8/dist;
+    mapping.multiplicative = 1.0/dist;
     mapping.preadditive=-min;
-    mapping.postadditive=-0.9;
+    mapping.postadditive=-0.5;
     for (vector<REAL> &v : input) {
         for (REAL &a : v) {
             a=(a+mapping.preadditive)*mapping.multiplicative+mapping.postadditive;

@@ -16,5 +16,10 @@ add_executable(graphics_demo
     graphics_demo.cpp
 )
 
+add_executable(thread_test
+    thread_test.cpp
+)
+
+
 
 target_link_libraries(graphics_demo ${CMAKE_SOURCE_DIR}/graphics/libgraphics.a SDL2 SDL2_ttf)

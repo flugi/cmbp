@@ -4,12 +4,14 @@
 #include "time.h"
 #include <cmath>
 #include <fstream>
+#include <functional>
 
 #include <string>
 #include <vector>
 #include <iostream>
+#include <sstream>
 #include <iomanip>
-#define ASSERT(felt, s) if (!(felt)) { std::cerr << __FILE__ << ":" <<  __LINE__ << " >"<< s << "<"<<std::endl; exit(1);}
+#define ASSERT(condition, s) if (!(condition)) { std::cerr << __FILE__ << ":" <<  __LINE__ << " >"<< s << "<"<<std::endl; exit(1);}
 
 
 
@@ -126,14 +128,18 @@ void MTM1x1P(REAL* c, REAL* a, REAL* b,
 
 template<typename REAL>
 inline REAL nlf (REAL x) {
-    return (REAL)tanh(x);     /* Tanh */
-
+//    return (REAL)tanh(x);     /* Tanh */
+    return x/(1.0+fabs(x));
 }
 
 template<typename REAL>
 inline REAL nldf (REAL x) {
-    return (REAL)(1.0-x*x);      /* Tanh' */
+  //  return (REAL)(1.0-x*x);      /* Tanh' */
+    return 1.0/(1.0+fabs(x))/(1.0+fabs(x));
 }
+
+
+
 
 template<typename REAL>
 class Random {
@@ -235,7 +241,62 @@ public:
             }
         }
     }
+    MBP(std::string imports, int P_aSeed = 0) {
+        std::stringstream ss;
+        ss << imports << " ";
+        ss >> nLayer;
+        nUnit=new int[nLayer+1];
+        for (int i=0;i<=nLayer;i++)
+            ss >> nUnit[i];
 
+        rand= new Random<REAL>(P_aSeed);
+        Delta=0;
+
+        Weight         = new REAL*[nLayer+1];
+        Bias           = new REAL*[nLayer+1];
+        OldWeight      = new REAL*[nLayer+1];
+        OldBias        = new REAL*[nLayer+1];
+        DeltaWeight    = new REAL*[nLayer+1];
+        DeltaBias      = new REAL*[nLayer+1];
+        OldDeltaWeight = new REAL*[nLayer+1];
+        OldDeltaBias   = new REAL*[nLayer+1];
+        StepWeight     = new REAL*[nLayer+1];
+        StepBias       = new REAL*[nLayer+1];
+
+        RunStatus = new REAL*[nLayer+1];
+
+        for (int i=1; i <= nLayer; i++) {
+            Weight[i]         = new REAL[nUnit[i]*nUnit[i-1]];
+            OldWeight[i]      = new REAL[nUnit[i]*nUnit[i-1]];
+            DeltaWeight[i]    = new REAL[nUnit[i]*nUnit[i-1]];
+            OldDeltaWeight[i] = new REAL[nUnit[i]*nUnit[i-1]];
+            StepWeight[i]     = new REAL[nUnit[i]*nUnit[i-1]];
+            for (int j=0;j<nUnit[i]*nUnit[i-1];j++) {
+                Weight[i][j]=OldWeight[i][j]=DeltaWeight[i][j]=OldDeltaWeight[i][j]=StepWeight[i][j]=0;
+            }
+        }
+        for (int i=0; i <= nLayer; i++) {
+            Bias[i]           = new REAL[nUnit[i]];
+            OldBias[i]        = new REAL[nUnit[i]];
+            DeltaBias[i]      = new REAL[nUnit[i]];
+            OldDeltaBias[i]   = new REAL[nUnit[i]];
+            StepBias[i]       = new REAL[nUnit[i]];
+            RunStatus[i] = new REAL[nUnit[i]];
+            for (int j=0;j<nUnit[i];j++) {
+                RunStatus[i][j]=Bias[i][j]=OldBias[i][j]=DeltaBias[i][j]=OldDeltaBias[i][j]=StepBias[i][j]=0;
+            }
+        }
+
+        for (int i=1; i <= nLayer; i++) {
+            for (int j=0; j < nUnit[i]*nUnit[i-1]; j++) {
+                ss >> Weight[i][j];
+            }
+            for (int j=0; j < nUnit[i]; j++) {
+                ss >> Bias[i][j];
+            }
+        }
+        setPattern(0);
+    }
 
     ~MBP()
     {
@@ -270,8 +331,10 @@ public:
         delete[] StepBias;
 
         delete[] RunStatus;
-        for (int i=1; i <= nLayer; i++) delete[] Delta[i];
-        delete[] Delta;
+        if (Delta) {
+            for (int i=1; i <= nLayer; i++) delete[] Delta[i];
+            delete[] Delta;
+        }
     }
 
     ///Allocate space for Delta array. Don't call this method directly, use the member functions of Trainer, unless you know what you are doing
@@ -335,7 +398,7 @@ public:
 
     ///Runs the network for a single input. outp should be allocated according
     ///the last layer of the network
-    void run (REAL *inp, REAL* outp)//REAL **NewStatus, int nRowsNS)
+    void run(REAL *inp, REAL* outp)//REAL **NewStatus, int nRowsNS)
     {
         for (int i=0;i<nUnit[0];i++) {
             RunStatus[0][i]=inp[i];
@@ -358,6 +421,56 @@ public:
         }
         for(int i=0;i<nUnit[nLayer];i++)
             outp[i]=RunStatus[nLayer][i];
+    }
+    std::vector<std::vector<REAL> > run(const std::vector<std::vector<REAL> > &input) {
+        int n = input.size();
+        int id = input.at(0).size();
+        ASSERT(nUnit[0]==id,"input vector size should be [input dimension][sample size]");
+        REAL** buf = new REAL*[Layer()+1];
+        for (int i=0; i <= Layer(); i++) {
+            (buf)[i]= new REAL[Unit(i)*(n)];
+        }
+        for (int i=0;i<n;i++) {
+            for (int j=0;j<id;j++) {
+                buf[0][i*id+j] = input[i][j];
+            }
+        }
+        FeedForward(buf, n);
+        int od = Unit(nLayer);
+        std::vector<std::vector<REAL> > res(n, std::vector<REAL>(od));
+        for (int i=0;i<n;i++) {
+            for (int j=0;j<od;j++) {
+                res[i][j] = buf[nLayer][i*od+j];
+            }
+        }
+        for (int i=0;i<=Layer();i++) delete[] buf[i];
+        delete[] buf;
+        return res;
+    }
+
+    std::string codeExport()//REAL **NewStatus, int nRowsNS)
+    {
+        std::stringstream ss;
+        for (int i=0;i<nUnit[0];i++) {
+            ss << "float rs0" <<i << "=input[" <<i<<"];\n";
+        }
+
+        for (int idx=1; idx <= nLayer; idx++) {
+            for (int j=0; j<nUnit[idx]; j++) {
+                ss << "float rs" << idx << j << "=f(";
+                for (int k=0;k<nUnit[idx-1]; k++) {
+                    ss << "rs" << idx-1<<k <<"*" << Weight[idx][j+nUnit[idx]*k] <<"+";
+//                    ss << "rs" << idx-1<<k <<"*" << "w["<<idx-1<<"]["<<j<<"]["<<k<<"]+";
+                }
+//                ss << "bias["<<idx-1<<"]["<<j<<"]);\n";
+                ss << Bias[idx][j] <<");\n";
+            }
+        }
+        for(int i=0;i<nUnit[nLayer];i++) {
+            //outp[i]=RunStatus[nLayer][i];
+            ss << "output[" <<i <<"]=rs"<<nLayer<<i<<";\n";
+        }
+        return ss.str();
     }
 
 
@@ -470,7 +583,22 @@ public:
             }
         }
         fclose(fWeight);
+    }
+    std::string Export() {
+        std::stringstream ss;
+        ss << nLayer << " ";
+        for (int i=0;i<=nLayer;i++)
+            ss << nUnit[i] << " ";
+        for (int i=1; i <= nLayer; i++) {
+            for (int j=0; j < nUnit[i]*nUnit[i-1]; j++) {
+                ss << Weight[i][j] << " ";
+            }
+            for (int j=0; j < nUnit[i]; j++) {
+                ss << Bias[i][j] << " ";
+            }
+        }
 
+        return ss.str();
     }
 
     /// Fill the weight matrix with random values in the interval [-Range,+Range].
@@ -524,6 +652,12 @@ private:
 
 };
 
+struct StatusCallbackData {
+    StatusCallbackData(int i, float a, float m, float d): iter(i), anaCost(a), maxCost(m), digCost(d) {}
+    int iter;
+    float anaCost, maxCost, digCost;
+};
+
 
 /// Trainer class
 /// Trainer is responsible for the training data and traning strategy. YPROP and VOGL mode supported.
@@ -549,9 +683,12 @@ public:
         BestAnaCost = 1e38; //big
         BestMaxCost = 1e38;
         BestDigCost = 1e38;
+        statuscallback=[](StatusCallbackData){};
     }
 
-
+    void setCallback(std::function<void(StatusCallbackData)> c) {
+        statuscallback = c;
+    }
 
     ~Trainer() {
         if (Status) {
@@ -630,61 +767,6 @@ public:
 
     }
 
-    /// Make a training step. Error will be calculated and backpropagated
-    /// Don't use directly unless you know what you are doing
-    void Step(){
-        /* for each layer */
-        /* compute the forward phase for the learning patterns */
-        mbp->FeedForward (Status,   nIPattern);
-
-        /* and the test patterns too */
-        if (Test) {
-            mbp->FeedForward (StatusTest,   nTPattern);
-        }
-
-        /* Back-propagate the error of the output layer */
-        mbp->ErrorBackProp(Status, Target, nIPattern);
-
-        /* Compute the gradient */
-        mbp->Step(Status, nIPattern);
-
-        /* Compute the costs and the gradient norm */
-
-        DigCost  = ComputeDigitalCost (Target, nIPattern, Status[mbp->Layer()]);
-        AnaCost  = ComputeAnalogCost  (Target, nIPattern, Status[mbp->Layer()]);
-        MaxCost  = ComputeMaximumCost (Target, nIPattern, Status[mbp->Layer()]);
-        GradientNorm = mbp->ComputeGradientNorm ();
-
-        /* for the test patterns too */
-
-        if (Test) {
-            AnaTestCost = ComputeAnalogCost (TargetTest, nTPattern, StatusTest[mbp->Layer()]);
-            MaxTestCost = ComputeMaximumCost (TargetTest, nTPattern, StatusTest[mbp->Layer()]);
-            DigTestCost = ComputeDigitalCost (TargetTest, nTPattern, StatusTest[mbp->Layer()]);
-        }
-
-        /* Test if the actual cost is the best */
-
-        if (AnaCost < BestAnaCost) {
-            BestAnaCost = AnaCost;
-            nBestAna    = nRun+1;
-        }
-        if (MaxCost < BestMaxCost) {
-            BestMaxCost = MaxCost;
-            nBestMax    = nRun+1;
-        }
-        if (DigCost < BestDigCost) {
-            BestDigCost = DigCost;
-            nBestDig    = nRun+1;
-        }
-
-        /* Print the starting step */
-        /* and every nPrints steps */
-
-        if (verbosemode) if ((nIter == 0)||(nPrints != 0 && nIter > 0 && (nIter % nPrints == 0))) {
-                PrintStep();
-            }
-    }
 
 
     /// Initialise new training run. Iteration counter will be reseted, Run counter don't change.
@@ -879,41 +961,26 @@ protected:
     /// Don't use directly unless you know what you are doing
     void Train(clock_t Start){
         /* Test if a threshold has been reached */
-
         if (GradientNorm <= GradTh || DigCost  <= DigTh  ||  AnaCost <= AnaTh  ||
             MaxCost  <= MaxTh  || nIter  >= IterTh ) {
-            /* Stop the timer */
             clock_t End = clock();
-            /* and the current run */
             endRun = true;
 
             nRun++;
-
-
-            /* End MBP ? */
-
             if (nRun >= RunTh) {
                 endMBP = true;
             }
-            if (verbosemode) {
-                /* Print the last step */
-                PrintStep();
 
-                /* Print the speed of the lerning */
+            if (verbosemode) {
+                PrintStep();
                 OutTime ((double)(End-Start)/CLOCKS_PER_SEC);
             }
-
-            /* Save the weights of this run */
-
-            mbp->SaveWeights();
+            //mbp->SaveWeights();
         }
 
         /* else makes a step following the Vogl's or YPROP algorithm */
-
         else {
-
             /* If cost is better increase Eta */
-
             if (AnaCost < OldAnaCost) {
                 if (YProp) {
                     Eta *= 1+Ka/(Ka+Eta);
@@ -947,7 +1014,6 @@ protected:
                 }
                 Alpha       = 0.0;
                 mbp->BackStep();
-
             }
 
             /* Makes the learning step */
@@ -959,10 +1025,68 @@ protected:
 
 
     }
+    /// Make a training step. Error will be calculated and backpropagated
+    /// Don't use directly unless you know what you are doing
+    void Step(){
+        /* for each layer */
+        /* compute the forward phase for the learning patterns */
+        mbp->FeedForward (Status,   nIPattern);
+
+        /* and the test patterns too */
+        if (Test) {
+            mbp->FeedForward (StatusTest,   nTPattern);
+        }
+
+        /* Back-propagate the error of the output layer */
+        mbp->ErrorBackProp(Status, Target, nIPattern);
+
+        /* Compute the gradient */
+        mbp->Step(Status, nIPattern);
+
+        /* Compute the costs and the gradient norm */
+
+        DigCost  = ComputeDigitalCost (Target, nIPattern, Status[mbp->Layer()]);
+        AnaCost  = ComputeAnalogCost  (Target, nIPattern, Status[mbp->Layer()]);
+        MaxCost  = ComputeMaximumCost (Target, nIPattern, Status[mbp->Layer()]);
+        GradientNorm = mbp->ComputeGradientNorm ();
+
+        /* for the test patterns too */
+
+        if (Test) {
+            AnaTestCost = ComputeAnalogCost (TargetTest, nTPattern, StatusTest[mbp->Layer()]);
+            MaxTestCost = ComputeMaximumCost (TargetTest, nTPattern, StatusTest[mbp->Layer()]);
+            DigTestCost = ComputeDigitalCost (TargetTest, nTPattern, StatusTest[mbp->Layer()]);
+        }
+
+        /* Test if the actual cost is the best */
+
+        if (AnaCost < BestAnaCost) {
+            BestAnaCost = AnaCost;
+            nBestAna    = nRun+1;
+        }
+        if (MaxCost < BestMaxCost) {
+            BestMaxCost = MaxCost;
+            nBestMax    = nRun+1;
+        }
+        if (DigCost < BestDigCost) {
+            BestDigCost = DigCost;
+            nBestDig    = nRun+1;
+        }
+
+        /* Print the starting step */
+        /* and every nPrints steps */
+
+        statuscallback(StatusCallbackData(nIter, AnaCost, MaxCost, DigCost));
+
+        if (verbosemode) if ((nIter == 0)||(nPrints != 0 && nIter > 0 && (nIter % nPrints == 0))) {
+                PrintStep();
+            }
+    }
 
     MBP<REAL> * mbp;
     bool loadifpossible;
     bool verbosemode;
+    std::function<void(StatusCallbackData)> statuscallback;
 
     REAL** Status;         /**< Neurons status for learning patterns            */
     REAL** StatusTest;     /**< Neurons status for test patterns                */
@@ -1020,7 +1144,6 @@ protected:
 
 
 };
-
 
 
 
