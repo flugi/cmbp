@@ -11,10 +11,48 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <chrono>
+#include <map>
+#include <list>
+#include <mutex>
 #define ASSERT(condition, s) if (!(condition)) { std::cerr << __FILE__ << ":" <<  __LINE__ << " >"<< s << "<"<<std::endl; exit(1);}
 
+#ifdef MBP_BENCHMARK
 
+struct AllBenchmarks {
+    std::mutex mtx;
+    std::map<std::string, std::list<double>> m;
+    void add(std::string name, double dur) {
+        mtx.lock();
+        m[name].push_back(dur);
+        mtx.unlock();
+    }
+    ~AllBenchmarks() {
+        for (std::pair<std::string, std::list<double>> p : m) {
+            std::cout << p.first << " ";
+            double sum=0;
+            for (double a : p.second) {
+                sum+=a;
+            }
+            std::cout << sum/float(p.second.size()) << std::endl;
+        }
+    }
+} _all_benchmarks;
 
+struct Benchmark {
+    std::string name_;
+    std::chrono::system_clock::time_point start_;
+    Benchmark(std::string name) :name_(name), start_(std::chrono::system_clock::now()) {
+
+    }
+    ~Benchmark() {
+//        std::cout << "Benchmark " << name_ << ":" << std::chrono::duration<double, std::milli> (std::chrono::system_clock::now()-start_).count() << std::endl;
+        double dur = std::chrono::duration<double, std::milli> (std::chrono::system_clock::now()-start_).count();
+        _all_benchmarks.add(name_, dur);
+    }
+};
+
+#endif
 
 /* **************************************************************************/
 /*                           MM1x1P                                         */
@@ -32,23 +70,31 @@
  * @param            NbOffs     rows overlap of b
  *
  * **************************************************************************/
-template<typename REAL>
+template<typename REAL, int threadcount=16>
 void MM1x1P(REAL* c, REAL* a, REAL* b,
             int Ni,int Nj,int Nk, int NaOffs, int NbOffs) {
-    REAL s00;
-    REAL *pa,*pb,*pc;
-#pragma omp parallel for
+//std::cout << "MM1x1P Ni:" << Ni <<" Nj:" << Nj << " Nk:" << Nk << std::endl;
+#ifdef MBP_BENCHMARK
+Benchmark bnch("MM"+std::to_string(Ni)+"x"+std::to_string(Nj)+"x"+std::to_string(Nk));
+#endif
+
+#pragma omp parallel for num_threads(threadcount)
     for (int i=0; i<Ni; i++) {
-        int k=0;
         for (int j=0; j<Nj; j++) {
-            pc = c+j+Nj*i;
-            s00 = 0.0;
-            for (k=0,pb=b+j+k*NbOffs, pa=a+k+NaOffs*i; k<Nk; k++,pa++,pb+=NbOffs) {
+            REAL *pc = c+j+Nj*i;
+            REAL s00 = 0.0;
+            REAL * pa=a+NaOffs*i;
+            REAL * pb=b+j;
+            for (int k=0 ; k<Nk; k++) {
                 s00 += (*pa)*(*pb);
+                pa++;
+                pb+=NbOffs;
             }
             *pc = s00;
         }
     }
+
+
 }
 
 
@@ -68,21 +114,24 @@ void MM1x1P(REAL* c, REAL* a, REAL* b,
  * @param            NbOffs     rows overlap of b
  *
  * **************************************************************************/
-template <typename REAL>
+template <typename REAL, int threadcount=16>
 void MMT1x1P(REAL* c, REAL* a, REAL* b,
              int Ni, int Nj, int Nk, int NaOffs, int NbOffs) {
-    REAL s00;
-    REAL *pa,*pb,*pc;
+//std::cout << "MMT1x1P Ni:" << Ni <<" Nj:" << Nj << " Nk:" << Nk << std::endl;
+#ifdef MBP_BENCHMARK
+Benchmark bnch("MMT"+std::to_string(Ni)+"x"+std::to_string(Nj)+"x"+std::to_string(Nk));
+#endif
 
-#pragma omp parallel for
-    for (int i=0; i<Ni; i++) {
-        int k=0;
-        for (int j=0; j<Nj; j++) {
-            pc = c+j+Nj*i;
-            s00 = 0.0;
-            for (k=0,pb=b+k+NbOffs*j, pa=a+k+NaOffs*i; k<Nk; k++,pa++,pb++) {
+#pragma omp parallel for num_threads(threadcount)
+        for (int i=0; i<Ni; i++) {
+    for (int j=0; j<Nj; j++) {
+            REAL s00 = 0.0;
+            REAL * pb = b+NbOffs*j;
+            REAL * pa = a+NaOffs*i;
+            for (int k=0; k<Nk; k++,pa++,pb++) {
                 s00 += (*pa)*(*pb);
             }
+            REAL *pc = c+j+Nj*i;
             *pc = s00;
         }
     }
@@ -104,24 +153,66 @@ void MMT1x1P(REAL* c, REAL* a, REAL* b,
  * @param
  * **************************************************************************/
 
-template <typename REAL>
+template <typename REAL, int threadcount=16>
 void MTM1x1P(REAL* c, REAL* a, REAL* b,
              int Ni, int Nj, int Nk, int NaOffs, int NbOffs) {
-    REAL *pa,*pb,*pc;
-    REAL s00;
+//std::cout << "MTM1x1P Ni:" << Ni <<" Nj:" << Nj << " Nk:" << Nk << std::endl;
+#ifdef MBP_BENCHMARK
+Benchmark bnch("MTM"+std::to_string(Ni)+"x"+std::to_string(Nj)+"x"+std::to_string(Nk));
+#endif
 
-#pragma omp parallel for
-    for (int i=0; i<Ni; i++) {
-        int k=0;
-        for (int j=0; j<Nj; j++) {
-            pc = c+j+Nj*i;
-            s00 = 0.0;
-            for (k=0,pb=b+j+k*NbOffs, pa=a+k*NaOffs+i; k<Nk; k++,pa+=NaOffs,pb+=NbOffs) {
-                s00 += (*pa)*(*pb);
+    if (Ni < Nj) {
+
+
+#pragma omp parallel for num_threads(threadcount)
+        for (int i=0; i<Ni; i++) {
+            REAL *s=new REAL[Nj];
+            for (int j=0; j<Nj; j++) {
+                s[j]=0;
             }
-            *pc = s00;
+                REAL * pb = b;
+                REAL * pa = a+i;
+                for (int k=0; k<Nk; k++,pa+=NaOffs,pb+=NbOffs) {
+                    for (int j=0; j<Nj; j++) {
+                        s[j] += (*pa)*(*(pb+j));
+                    }
+                    //s00 += (*pa)*(*pb);
+                }
+            for (int j=0; j<Nj; j++) {
+                REAL * pc = c+j+Nj*i;
+                *pc = s[j];
+            }
+    //            *pc = s00;
+            delete[] s;
+
+        }
+
+    }else {
+
+#pragma omp parallel for num_threads(threadcount)
+        for (int j=0; j<Nj; j++) {
+            REAL *s=new REAL[Ni];
+            for (int i=0; i<Ni; i++) {
+                s[i]=0;
+            }
+                REAL * pb = b+j;
+                REAL * pa = a;
+                for (int k=0; k<Nk; k++,pa+=NaOffs,pb+=NbOffs) {
+                    for (int i=0; i<Ni; i++) {
+                        s[i] += (*(pa+i))*(*(pb));
+                    }
+                    //s00 += (*pa)*(*pb);
+                }
+            for (int i=0; i<Ni; i++) {
+                REAL * pc = c+j+Nj*i;
+                *pc = s[i];
+            }
+            delete[] s;
+    //            *pc = s00;
+
         }
     }
+
 }
 
 
@@ -188,7 +279,7 @@ private:
 
 /// @brief Matrix Backpropagation neural network
 
-template <typename REAL>
+template <typename REAL, int threadcount=16>
 class MBP {
 public:
     /// MBP must be initialised by
@@ -359,7 +450,7 @@ public:
     void Step(REAL **Status, int nIPattern) {
         for (int il=1; il <= nLayer; il++)
         {
-            MTM1x1P(DeltaWeight[il], Status[il-1], Delta[il], nUnit[il-1],nUnit[il], nIPattern, nUnit[il-1],
+            MTM1x1P<REAL, threadcount>(DeltaWeight[il], Status[il-1], Delta[il], nUnit[il-1],nUnit[il], nIPattern, nUnit[il-1],
                     nUnit[il]);
 
             for (int i=0; i<nUnit[il]; i++) {
@@ -383,7 +474,7 @@ public:
             int nColsOS=nUnit[idx-1];
             int nColsW=nColsNS;
 
-            MM1x1P (NewStatus[idx], OldStatus, Weight[idx], nRowsNS, nColsNS, nColsOS,
+            MM1x1P<REAL, threadcount> (NewStatus[idx], OldStatus, Weight[idx], nRowsNS, nColsNS, nColsOS,
                    nColsOS,   nColsW);
 
             /* Compute neurons' output */
@@ -410,7 +501,7 @@ public:
             int nColsOS=nUnit[idx-1];
             int nColsW=nColsNS;
 
-            MM1x1P (RunStatus[idx], OldStatus, Weight[idx], 1, nColsNS, nColsOS,
+            MM1x1P<REAL,threadcount> (RunStatus[idx], OldStatus, Weight[idx], 1, nColsNS, nColsOS,
                    nColsOS,   nColsW);
 
             /* Compute neurons' output */
@@ -538,7 +629,7 @@ public:
         }
 
         for (int i=nLayer-1; i >= 1; i--) {
-            MMT1x1P ( Delta[i], Delta[i+1], Weight[i+1],
+            MMT1x1P<REAL,threadcount> ( Delta[i], Delta[i+1], Weight[i+1],
                     nIPattern, nUnit[i], nUnit[i+1], nUnit[i+1],nUnit[i+1]);
             for (int j=0; j < nIPattern*nUnit[i]; j++) {
                 Delta[i][j] *= nldf(Status[i][j]);
@@ -663,11 +754,11 @@ struct StatusCallbackData {
 /// Trainer is responsible for the training data and traning strategy. YPROP and VOGL mode supported.
 /// @brief Neural network training tool
 
-template<typename REAL>
+template<typename REAL, int threadcount = 16>
 class Trainer {
 public:
     ///Trainer must be initialised with an MBP object. This will be the neural network to train
-    Trainer(MBP<REAL> *P_mbp) : mbp(P_mbp), AnaTestCost(0.0),MaxTestCost(0.0),DigTestCost(0.0){
+    Trainer(MBP<REAL, threadcount> *P_mbp) : mbp(P_mbp), AnaTestCost(0.0),MaxTestCost(0.0),DigTestCost(0.0){
 
         Tune(1.0, 1.47,2.0, 0.75, 0.9, 1.05,0.7, 1.05,0.7,0.07);
 
@@ -1083,7 +1174,7 @@ protected:
             }
     }
 
-    MBP<REAL> * mbp;
+    MBP<REAL, threadcount> * mbp;
     bool loadifpossible;
     bool verbosemode;
     std::function<void(StatusCallbackData)> statuscallback;

@@ -1,14 +1,23 @@
 #include "graphics.hpp"
 #include "../mbp.hpp"
-using namespace genv;
 #include <iostream>
+#include <sstream>
+
+using namespace genv;
 using namespace std;
 
-int main()
+int main(int argc, char*argv[])
 {
     const int XX=800;
     const int YY=800;
+    int hiddenLayerSize = 25;
+    if (argc > 1) {
+        stringstream ss;
+        ss << argv[1] << " ";
+        ss >> hiddenLayerSize;
+    }
     vector<int> reteg({2,25,1});
+    reteg[1] = hiddenLayerSize;
     MBP<float> mbp(reteg,1);
     Trainer<float> tr(&mbp);
     tr.LoadIfPossible(false);

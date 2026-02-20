@@ -37,6 +37,7 @@ int main(int argc, char* argv[]) {
 
     tr->setParams(0, 0, 0.0, -1, iterations, 1, 1, 1);
 
+
     for (int i=0;i<16;i++) {
         a[i][0]=0.4*(((i/8)%2)*2-1);
         a[i][1]=0.4*(((i/4)%2)*2-1);

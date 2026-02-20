@@ -19,6 +19,9 @@ add_executable(graphics_demo
 add_executable(thread_test
     thread_test.cpp
 )
+add_executable(benchmark
+    benchmark.cpp
+)
 
 
 
