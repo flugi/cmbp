@@ -17,6 +17,12 @@
 #include <mutex>
 #define ASSERT(condition, s) if (!(condition)) { std::cerr << __FILE__ << ":" <<  __LINE__ << " >"<< s << "<"<<std::endl; exit(1);}
 
+#ifndef MBP_THREADCOUNT
+#define OMP_PARALLEL_FOR _Pragma("omp parallel for")
+#else
+#define OMP_PARALLEL_FOR _Pragma("omp parallel for num_threads(MBP_THREADCOUNT)")
+#endif
+
 #ifdef MBP_BENCHMARK
 
 struct AllBenchmarks {
@@ -34,7 +40,7 @@ struct AllBenchmarks {
             for (double a : p.second) {
                 sum+=a;
             }
-            std::cout << sum/float(p.second.size()) << std::endl;
+            std::cout << sum/float(p.second.size()) << "(" << p.second.size() << ")" << std::endl;
         }
     }
 } _all_benchmarks;
@@ -70,7 +76,7 @@ struct Benchmark {
  * @param            NbOffs     rows overlap of b
  *
  * **************************************************************************/
-template<typename REAL, int threadcount=16>
+template<typename REAL>
 void MM1x1P(REAL* c, REAL* a, REAL* b,
             int Ni,int Nj,int Nk, int NaOffs, int NbOffs) {
 //std::cout << "MM1x1P Ni:" << Ni <<" Nj:" << Nj << " Nk:" << Nk << std::endl;
@@ -78,7 +84,8 @@ void MM1x1P(REAL* c, REAL* a, REAL* b,
 Benchmark bnch("MM"+std::to_string(Ni)+"x"+std::to_string(Nj)+"x"+std::to_string(Nk));
 #endif
 
-#pragma omp parallel for num_threads(threadcount)
+//#pragma omp parallel for
+OMP_PARALLEL_FOR
     for (int i=0; i<Ni; i++) {
         for (int j=0; j<Nj; j++) {
             REAL *pc = c+j+Nj*i;
@@ -93,6 +100,7 @@ Benchmark bnch("MM"+std::to_string(Ni)+"x"+std::to_string(Nj)+"x"+std::to_string
             *pc = s00;
         }
     }
+
 
 
 }
@@ -122,9 +130,9 @@ void MMT1x1P(REAL* c, REAL* a, REAL* b,
 Benchmark bnch("MMT"+std::to_string(Ni)+"x"+std::to_string(Nj)+"x"+std::to_string(Nk));
 #endif
 
-#pragma omp parallel for num_threads(threadcount)
-        for (int i=0; i<Ni; i++) {
-    for (int j=0; j<Nj; j++) {
+OMP_PARALLEL_FOR
+    for (int i=0; i<Ni; i++) {
+        for (int j=0; j<Nj; j++) {
             REAL s00 = 0.0;
             REAL * pb = b+NbOffs*j;
             REAL * pa = a+NaOffs*i;
@@ -164,20 +172,20 @@ Benchmark bnch("MTM"+std::to_string(Ni)+"x"+std::to_string(Nj)+"x"+std::to_strin
     if (Ni < Nj) {
 
 
-#pragma omp parallel for num_threads(threadcount)
+OMP_PARALLEL_FOR
         for (int i=0; i<Ni; i++) {
             REAL *s=new REAL[Nj];
             for (int j=0; j<Nj; j++) {
                 s[j]=0;
             }
-                REAL * pb = b;
-                REAL * pa = a+i;
-                for (int k=0; k<Nk; k++,pa+=NaOffs,pb+=NbOffs) {
-                    for (int j=0; j<Nj; j++) {
-                        s[j] += (*pa)*(*(pb+j));
-                    }
-                    //s00 += (*pa)*(*pb);
+            REAL * pb = b;
+            REAL * pa = a+i;
+            for (int k=0; k<Nk; k++,pa+=NaOffs,pb+=NbOffs) {
+                for (int j=0; j<Nj; j++) {
+                    s[j] += (*pa)*(*(pb+j));
                 }
+                //s00 += (*pa)*(*pb);
+            }
             for (int j=0; j<Nj; j++) {
                 REAL * pc = c+j+Nj*i;
                 *pc = s[j];
@@ -195,14 +203,14 @@ Benchmark bnch("MTM"+std::to_string(Ni)+"x"+std::to_string(Nj)+"x"+std::to_strin
             for (int i=0; i<Ni; i++) {
                 s[i]=0;
             }
-                REAL * pb = b+j;
-                REAL * pa = a;
-                for (int k=0; k<Nk; k++,pa+=NaOffs,pb+=NbOffs) {
-                    for (int i=0; i<Ni; i++) {
-                        s[i] += (*(pa+i))*(*(pb));
-                    }
-                    //s00 += (*pa)*(*pb);
+            REAL * pb = b+j;
+            REAL * pa = a;
+            for (int k=0; k<Nk; k++,pa+=NaOffs,pb+=NbOffs) {
+                for (int i=0; i<Ni; i++) {
+                    s[i] += (*(pa+i))*(*(pb));
                 }
+                //s00 += (*pa)*(*pb);
+            }
             for (int i=0; i<Ni; i++) {
                 REAL * pc = c+j+Nj*i;
                 *pc = s[i];
@@ -229,7 +237,22 @@ inline REAL nldf (REAL x) {
     return 1.0/(1.0+fabs(x))/(1.0+fabs(x));
 }
 
+template<typename REAL>
+inline REAL normalizeInputTanH(REAL value, REAL offset = 0.5)
+{
+	return (value - offset) / (1 + fabs(value - offset));
 
+}
+
+template<typename REAL>
+inline REAL normalizeOutputTanH(REAL value, REAL offset = 0.5)
+{
+	if (value > 0)
+		return (-value / (value - 1)) + offset;
+	else
+		return (value / (value + 1)) + offset;
+
+}
 
 
 template<typename REAL>
@@ -279,7 +302,7 @@ private:
 
 /// @brief Matrix Backpropagation neural network
 
-template <typename REAL, int threadcount=16>
+template <typename REAL>
 class MBP {
 public:
     /// MBP must be initialised by
@@ -450,7 +473,7 @@ public:
     void Step(REAL **Status, int nIPattern) {
         for (int il=1; il <= nLayer; il++)
         {
-            MTM1x1P<REAL, threadcount>(DeltaWeight[il], Status[il-1], Delta[il], nUnit[il-1],nUnit[il], nIPattern, nUnit[il-1],
+            MTM1x1P<REAL>(DeltaWeight[il], Status[il-1], Delta[il], nUnit[il-1],nUnit[il], nIPattern, nUnit[il-1],
                     nUnit[il]);
 
             for (int i=0; i<nUnit[il]; i++) {
@@ -474,7 +497,7 @@ public:
             int nColsOS=nUnit[idx-1];
             int nColsW=nColsNS;
 
-            MM1x1P<REAL, threadcount> (NewStatus[idx], OldStatus, Weight[idx], nRowsNS, nColsNS, nColsOS,
+            MM1x1P<REAL> (NewStatus[idx], OldStatus, Weight[idx], nRowsNS, nColsNS, nColsOS,
                    nColsOS,   nColsW);
 
             /* Compute neurons' output */
@@ -501,7 +524,7 @@ public:
             int nColsOS=nUnit[idx-1];
             int nColsW=nColsNS;
 
-            MM1x1P<REAL,threadcount> (RunStatus[idx], OldStatus, Weight[idx], 1, nColsNS, nColsOS,
+            MM1x1P<REAL> (RunStatus[idx], OldStatus, Weight[idx], 1, nColsNS, nColsOS,
                    nColsOS,   nColsW);
 
             /* Compute neurons' output */
@@ -629,7 +652,7 @@ public:
         }
 
         for (int i=nLayer-1; i >= 1; i--) {
-            MMT1x1P<REAL,threadcount> ( Delta[i], Delta[i+1], Weight[i+1],
+            MMT1x1P<REAL> ( Delta[i], Delta[i+1], Weight[i+1],
                     nIPattern, nUnit[i], nUnit[i+1], nUnit[i+1],nUnit[i+1]);
             for (int j=0; j < nIPattern*nUnit[i]; j++) {
                 Delta[i][j] *= nldf(Status[i][j]);
@@ -754,11 +777,11 @@ struct StatusCallbackData {
 /// Trainer is responsible for the training data and traning strategy. YPROP and VOGL mode supported.
 /// @brief Neural network training tool
 
-template<typename REAL, int threadcount = 16>
+template<typename REAL>
 class Trainer {
 public:
     ///Trainer must be initialised with an MBP object. This will be the neural network to train
-    Trainer(MBP<REAL, threadcount> *P_mbp) : mbp(P_mbp), AnaTestCost(0.0),MaxTestCost(0.0),DigTestCost(0.0){
+    Trainer(MBP<REAL> *P_mbp) : mbp(P_mbp), AnaTestCost(0.0),MaxTestCost(0.0),DigTestCost(0.0){
 
         Tune(1.0, 1.47,2.0, 0.75, 0.9, 1.05,0.7, 1.05,0.7,0.07);
 
@@ -1066,7 +1089,7 @@ protected:
                 PrintStep();
                 OutTime ((double)(End-Start)/CLOCKS_PER_SEC);
             }
-            //mbp->SaveWeights();
+            mbp->SaveWeights();
         }
 
         /* else makes a step following the Vogl's or YPROP algorithm */
@@ -1174,7 +1197,7 @@ protected:
             }
     }
 
-    MBP<REAL, threadcount> * mbp;
+    MBP<REAL> * mbp;
     bool loadifpossible;
     bool verbosemode;
     std::function<void(StatusCallbackData)> statuscallback;

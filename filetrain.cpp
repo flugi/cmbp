@@ -83,7 +83,7 @@ void check1(vector<vector<REAL> >&input, vector<vector<REAL> > &output ) {
         vector<int> indices;
         for (int j=0;j<N;j++) {
             float sum=0;
-            for (int k=0;k<input[j].size();k++) {
+            for (size_t k=0;k<input[j].size();k++) {
                 sum+=fabs(input[j][k]-pivot[k]);
             }
             if (sum<0.004) { // 1/255 == 0.004
@@ -94,7 +94,7 @@ void check1(vector<vector<REAL> >&input, vector<vector<REAL> > &output ) {
 //            cout << indices.size() << " ";
             for (int d : indices) {
                 float sum=0;
-                for (int k =0; k<input[d].size();k++) {
+                for (size_t k =0; k<input[d].size();k++) {
                     sum+=fabs(output[i][k]-output[d][k]);
                 }
                 if (sum>0.2) {
@@ -149,7 +149,7 @@ void check(vector<vector<REAL> >&input, vector<vector<REAL> > &output ) {
 void decimate(vector<vector<REAL> >&input, vector<vector<REAL> > &output ) {
     const int step = 32*15;
     vector<vector<REAL>> new_input, new_output;
-    for (int i=0;i<input.size();i+=step) {
+    for (size_t i=0;i<input.size();i+=step) {
         new_input.push_back(input[i]);
         new_output.push_back(output[i]);
     }

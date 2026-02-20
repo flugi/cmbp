@@ -18,7 +18,7 @@ int main(int argc, char*argv[])
     }
     vector<int> reteg({2,25,1});
     reteg[1] = hiddenLayerSize;
-    MBP<float> mbp(reteg,1);
+    MBP<float> mbp(reteg,-1);
     Trainer<float> tr(&mbp);
     tr.LoadIfPossible(false);
     vector<vector<float> > inp, outp;
@@ -48,9 +48,9 @@ int main(int argc, char*argv[])
                 inp.push_back(p);
                 vector<float> op(1);
                 if (ev.button==btn_left)
-                    op[0]=0.9;
+                    op[0]=0.7;
                 if (ev.button==btn_right)
-                    op[0]=-0.9;
+                    op[0]=-0.7;
                 outp.push_back(op);
             }
         }
@@ -61,7 +61,7 @@ int main(int argc, char*argv[])
             }
             if (ev.keycode=='t') {
                 tr.setInput(inp, outp);
-                tr.setParams(0, 0, 0.0, -1, 1000, 3, 100, 0);
+                tr.setParams(0, 0, 0.0, -1, 2000, 3, 100, 0);
                 tr.Learn();
                 tr.LoadIfPossible(true);
                 cout <<"err:"<< tr.lastAnaCost() << " ("<<tr.lastMaxCost() <<" max)" << endl;
@@ -78,7 +78,7 @@ int main(int argc, char*argv[])
             }
 
         }
-        for (int i=0;i<inp.size();i++) {
+        for (size_t i=0;i<inp.size();i++) {
             short a=128+100*outp[i][0];
             gout << move_to((inp[i][0]+1)/2*XX,(inp[i][1]+1)/2*YY) << color(a,a,a) << box(3,3) << genv::move(-1,-1) << color(128,128,128) << dot;
         }
